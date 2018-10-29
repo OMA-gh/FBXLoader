@@ -11,8 +11,8 @@
 #include <fbxsdk.h>
 
 namespace fbx{
-
-typedef void(*LoadFun)(const FbxObject*);
+    
+typedef void(*LoadFun)(const fbxsdk::FbxObject*);
 
 struct ModelBoneWeight {
     uint8_t boneIndex[4];
