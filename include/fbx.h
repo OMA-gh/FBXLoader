@@ -88,14 +88,14 @@ public:
     void Finalize();
 
 public:
-    const std::vector<ModelMesh>& GetMeshList() {
+    const std::vector<ModelMesh>& GetMeshList() const {
         return mMeshList;
     }
     std::vector<ModelMesh>* GetMeshListPtr() {
         return &mMeshList;
     }
 
-    const std::vector<ModelMaterial>& GetMaterialList() {
+    const std::vector<ModelMaterial>& GetMaterialList() const {
         return mMaterialList;
     }
     std::vector<ModelMaterial>* GetMaterialListPtr() {
@@ -105,16 +105,16 @@ public:
     const std::vector<FbxAnimation>& GetAnimationArray() const {
         return mAnimationArray;
     }
-    const int GetMaterialId(const std::string& materialName) const {
+    const int GetMaterialId(const std::string& material_name) const {
         if (this->mMaterialIdDictionary.size() > 0) {
-            return this->mMaterialIdDictionary.at(materialName);
+            return this->mMaterialIdDictionary.at(material_name);
         }
         return 0;
     }
 
-    void GetMeshMatrix(float frame, int meshId, glm::mat4 *out_matrix, int animNum) const;
-    void GetBoneMatrix(float frame, int meshId, glm::mat4 *out_matrixList, int matrixCount, int animNum) const;
-    void GetBoneMatrix(float frame, int meshId, glm::mat4 *out_matrixList, glm::mat4 *matrixList, int matrixCount, int animNum) const;
+    void GetMeshMatrix(glm::mat4 *out_matrix, float frame, int meshId, int animNum) const;
+    void GetBoneMatrix(glm::mat4 *out_matrixList, float frame, int meshId, int matrix_count, int anim_num) const;
+    void GetBoneMatrix(glm::mat4 *out_matrixList, float frame, int mesh_id, glm::mat4* matrix_list, int matrix_count, int anim_num) const;
 
     bool LoadAnimation(const char* filepath);
 protected:

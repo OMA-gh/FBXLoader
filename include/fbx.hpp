@@ -54,48 +54,52 @@ bool FbxLoader::Initialize(const char* filepath) {
         ParseNode(root_node);
     }
 
-    this->LoadAnimation("oma_Test.fbx");
+    this->LoadAnimation("Resources/oma_2_anim.fbx");
     
     return true;
 }
-
+//------------------------------------------------------------------------------------------
 //メッシュに置けるインデックスのリストを返す
-std::vector<int> GetIndexList(FbxMesh *mesh) {
-    auto polygonCount = mesh->GetPolygonCount();
+void GetIndexList(std::vector<int>* index_list, const FbxMesh& mesh) {
+    auto polygon_count = mesh.GetPolygonCount();
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("loading index start\n");
+    FBXSDK_printf("polygon count:[%d]\n", polygon_count);
 
-    std::vector<int> indexList;
-    indexList.reserve(polygonCount * 3);
-    for (int i = 0; i < polygonCount; i++) {
-        indexList.push_back(mesh->GetPolygonVertex(i, 0));
-        indexList.push_back(mesh->GetPolygonVertex(i, 1));
-        indexList.push_back(mesh->GetPolygonVertex(i, 2));
+    index_list->reserve(polygon_count * 3);
+    for (int i = 0; i < polygon_count; i++) {
+        index_list->push_back(mesh.GetPolygonVertex(i, 0));
+        index_list->push_back(mesh.GetPolygonVertex(i, 1));
+        index_list->push_back(mesh.GetPolygonVertex(i, 2));
     }
-    return indexList;
+    FBXSDK_printf("-----------------------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //頂点の位置座標のリストを返す
-std::vector<glm::vec3> GetPositionList(FbxMesh *mesh, const std::vector<int>& indexList) {
-    std::vector<glm::vec3> positionList;
-    positionList.reserve(indexList.size());
+void GetPositionList(std::vector<glm::vec3>* position_list, const FbxMesh& mesh, const std::vector<int>& indexList) {
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("loading position start\n");
+    position_list->reserve(indexList.size());
 
     for (auto index : indexList) {
-        auto controlPoint = mesh->GetControlPointAt(index);
-        positionList.push_back(glm::vec3(controlPoint[0], controlPoint[1], controlPoint[2]));
+        auto controlPoint = mesh.GetControlPointAt(index);
+        position_list->push_back(glm::vec3(controlPoint[0], controlPoint[1], controlPoint[2]));
     }
-    return positionList;
+    FBXSDK_printf("-----------------------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //これはメッシュの法線のリストを返す
-std::vector<glm::vec3> GetNormalList(FbxMesh *mesh, const std::vector<int> &indexList) {
-    auto elementCount = mesh->GetElementNormalCount();
-    auto element = mesh->GetElementNormal();
+void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, const std::vector<int> &indexList) {
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("loading normal start\n");
+    auto elementCount = mesh.GetElementNormalCount();
+    auto element = mesh.GetElementNormal();
     auto mappingMode = element->GetMappingMode();
     auto referenceMode = element->GetReferenceMode();
     const auto& indexArray = element->GetIndexArray();
     const auto& directArray = element->GetDirectArray();
 
-    std::vector<glm::vec3> normalList;
-    normalList.reserve(indexList.size());
+    normal_list->reserve(indexList.size());
 
     //マッピングモードでfbxファイル内の法線のデータが違う
     if (mappingMode == FbxGeometryElement::eByControlPoint) {
@@ -106,20 +110,20 @@ std::vector<glm::vec3> GetNormalList(FbxMesh *mesh, const std::vector<int> &inde
             //ソレ以外、大体eIndextoVertexかなんかだったらインデックス配列の番号を参照した
             //法線のデータがあるので其の番号を順番に取り出す
             auto normal = directArray.GetAt(normalIndex);
-            normalList.push_back(glm::vec3(normal[0], normal[1], normal[2]));
+            normal_list->push_back(glm::vec3(normal[0], normal[1], normal[2]));
         }
     }
     else if (mappingMode == FbxGeometryElement::eByPolygonVertex) {
         auto indexByPolygonVertex = 0;
-        auto polygonCount = mesh->GetPolygonCount();
+        auto polygonCount = mesh.GetPolygonCount();
         for (int i = 0; i < polygonCount; i++) {
-            auto polygonSize = mesh->GetPolygonSize(i); //これは三角化しているので全部3だと思う
+            auto polygonSize = mesh.GetPolygonSize(i); //これは三角化しているので全部3だと思う
             for (int j = 0; j < polygonSize; j++) {
                 auto normalIndex = (referenceMode == FbxGeometryElement::eDirect)
                     ? indexByPolygonVertex
                     : indexArray.GetAt(indexByPolygonVertex);
                 auto normal = directArray.GetAt(normalIndex);
-                normalList.push_back(glm::vec3(normal[0], normal[1], normal[2]));
+                normal_list->push_back(glm::vec3(normal[0], normal[1], normal[2]));
                 ++indexByPolygonVertex;
             }
         }
@@ -128,23 +132,24 @@ std::vector<glm::vec3> GetNormalList(FbxMesh *mesh, const std::vector<int> &inde
         printf("unknown mapping mode\n");
         assert(false);
     }
-    return normalList;
+    FBXSDK_printf("-----------------------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //メッシュ毎のテクスチャ座標をリストにして返す
-std::vector<glm::vec2> GetUVList(FbxMesh *mesh, const std::vector<int>& indexList, int uvNo) {
-    std::vector<glm::vec2> uvList;
-    auto elementCout = mesh->GetElementUVCount();
+void GetUVList(std::vector<glm::vec2>* uv_list,const FbxMesh& mesh, const std::vector<int>& indexList, int uvNo) {
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("loading uv start\n");
+    auto elementCout = mesh.GetElementUVCount();
     if (uvNo + 1 > elementCout) {
-        return uvList;
+        return;
     }
-    auto element = mesh->GetElementUV(uvNo);
+    auto element = mesh.GetElementUV(uvNo);
     auto mappingMode = element->GetMappingMode();
     auto referenceMode = element->GetReferenceMode();
     const auto& indexArray = element->GetIndexArray();
     const auto& directArray = element->GetDirectArray();
 
-    uvList.reserve(indexList.size());
+    uv_list->reserve(indexList.size());
     if (mappingMode == FbxGeometryElement::eByControlPoint) {
         //法線とだいたい同じ
         for (auto index : indexList) {
@@ -152,20 +157,20 @@ std::vector<glm::vec2> GetUVList(FbxMesh *mesh, const std::vector<int>& indexLis
                 ? index
                 : indexArray.GetAt(index);
             auto uv = directArray.GetAt(uvIndex);
-            uvList.push_back(glm::vec2(uv[0], uv[1]));
+            uv_list->push_back(glm::vec2(uv[0], uv[1]));
         }
     }
     else if (mappingMode == FbxGeometryElement::eByPolygonVertex) {
         auto indexByPolygonVetex = 0;
-        auto polygonCount = mesh->GetPolygonCount();
+        auto polygonCount = mesh.GetPolygonCount();
         for (int i = 0; i < polygonCount; i++) {
-            auto polygonSize = mesh->GetPolygonSize(i);
+            auto polygonSize = mesh.GetPolygonSize(i);
             for (int j = 0; j < polygonSize; j++) {
                 auto uvIndex = (referenceMode == FbxGeometryElement::eDirect)
                     ? indexByPolygonVetex
                     : indexArray.GetAt(indexByPolygonVetex);
                 auto uv = directArray.GetAt(uvIndex);
-                uvList.push_back(glm::vec2(uv[0], uv[1]));
+                uv_list->push_back(glm::vec2(uv[0], uv[1]));
                 ++indexByPolygonVetex;
             }
         }
@@ -174,82 +179,89 @@ std::vector<glm::vec2> GetUVList(FbxMesh *mesh, const std::vector<int>& indexLis
         printf("unknown mapping mode\n");
         assert(false);
     }
-    return uvList;
+    FBXSDK_printf("-----------------------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //ウェイトをメッシュごとに手に入れて返す
-void GetWeight(FbxMesh *mesh, const std::vector<int>& indexList, std::vector<ModelBoneWeight>& boneWeightList, std::vector<std::string> &boneNodeNameList, std::vector<glm::mat4> &invBaseposeMatrixList) {
-    auto skinCount = mesh->GetDeformerCount(FbxDeformer::eSkin);
-    if (skinCount == 0) {
+void GetWeight(std::vector<ModelBoneWeight>* boneWeightList, std::vector<std::string>* boneNodeNameList, std::vector<glm::mat4>* invBaseposeMatrixList, const FbxMesh& mesh, const std::vector<int>& indexList) {
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("loading bone weight start\n");
+    int skin_count = mesh.GetDeformerCount(FbxDeformer::eSkin);
+    FBXSDK_printf("skin count:[%d]\n", skin_count);
+    if (skin_count == 0) {
+        FBXSDK_printf("-----------------------------------------------\n");
         return;
     }
-    assert(skinCount <= 1);
+    assert(skin_count <= 1);
 
-    auto controlPointsCount = mesh->GetControlPointsCount();
+    int control_points_count = mesh.GetControlPointsCount();
     using TmpWeight = std::pair<int, float>;
-    std::vector<std::vector<TmpWeight>> tmpBoneWeightList(controlPointsCount);
+    std::vector<std::vector<TmpWeight>> tmp_bone_weight_list(control_points_count);
 
-    auto skin = static_cast<FbxSkin*>(mesh->GetDeformer(0, FbxDeformer::eSkin));
+    auto skin = static_cast<FbxSkin*>(mesh.GetDeformer(0, FbxDeformer::eSkin));
 
-    auto clusterCount = skin->GetClusterCount();
-    for (int i = 0; i < clusterCount; i++) {
+    auto cluster_count = skin->GetClusterCount();
+    FBXSDK_printf("cluster count:[%d]\n", cluster_count);
+    for (int i = 0; i < cluster_count; i++) {
         auto cluster = skin->GetCluster(i);
 
         assert(cluster->GetLinkMode() == FbxCluster::eNormalize);
 
-        boneNodeNameList.push_back(cluster->GetLink()->GetName());
-        //FBXSDK_printf("%s\n",cluster->GetLink()->GetName());
+        boneNodeNameList->push_back(cluster->GetLink()->GetName());
+        FBXSDK_printf("cluster name:[%s]\n",cluster->GetLink()->GetName());
 
-        auto indexCount = cluster->GetControlPointIndicesCount();
+        auto index_count = cluster->GetControlPointIndicesCount();
         auto indices = cluster->GetControlPointIndices();
         auto weights = cluster->GetControlPointWeights();
 
-        for (int k = 0; k < indexCount; k++) {
+        for (int k = 0; k < index_count; k++) {
             int controlPointIndex = indices[k];
-            tmpBoneWeightList[controlPointIndex].push_back({ i, weights[k] });
+            tmp_bone_weight_list[controlPointIndex].push_back({ i, weights[k] });
         }
 
-        glm::mat4 invBaseposeMatrix; //ベースポーズの逆行列、どっかで使うため
+        glm::mat4 inverse_base_pose_matrix; //ベースポーズの逆行列、どっかで使うため
 
         auto baseposeMatrix = cluster->GetLink()->EvaluateGlobalTransform().Inverse();
         auto baseposeMatrixPtr = (double*)baseposeMatrix;
         for (int k = 0; k < 16; k++) {
-            invBaseposeMatrix[k / 4][k % 4] = (float)baseposeMatrixPtr[k];
+            inverse_base_pose_matrix[k / 4][k % 4] = (float)baseposeMatrixPtr[k];
         }
-        invBaseposeMatrixList.push_back(invBaseposeMatrix);
+        invBaseposeMatrixList->push_back(inverse_base_pose_matrix);
     }
 
-    std::vector<ModelBoneWeight> boneWeightListControlPoints;
-    for (auto& tmpBoneWeight : tmpBoneWeightList) {
+    std::vector<ModelBoneWeight> bone_weight_list_control_points;
+    FBXSDK_printf("bone weight count:[%d]\n", bone_weight_list_control_points.size());
+    for (auto& tmp_bone_weight : tmp_bone_weight_list) {
         //ウェイトの大きさでソート
-        std::sort(tmpBoneWeight.begin(), tmpBoneWeight.end(), [](const TmpWeight& weightA, const TmpWeight& weightB) { return weightA.second > weightB.second; });
+        std::sort(tmp_bone_weight.begin(), tmp_bone_weight.end(), [](const TmpWeight& weightA, const TmpWeight& weightB) { return weightA.second > weightB.second; });
         //Unitychan.fbxとかにはウェイトが6つまで用意されている為、GLSLで使いやすいように4つに減らすということをしている
-        while (tmpBoneWeight.size() > 4) {
-            tmpBoneWeight.pop_back();
+        while (tmp_bone_weight.size() > 4) {
+            tmp_bone_weight.pop_back();
         }
 
-        while (tmpBoneWeight.size() < 4) {
-            tmpBoneWeight.push_back({ 0, 0.0f }); //ダミーを入れとく
+        while (tmp_bone_weight.size() < 4) {
+            tmp_bone_weight.push_back({ 0, 0.0f }); //ダミーを入れとく
         }
         ModelBoneWeight weight;
         float total = 0.0f;
         for (int i = 0; i < 4; i++) {
-            weight.boneIndex[i] = tmpBoneWeight[i].first;
-            weight.boneWeight[i] = tmpBoneWeight[i].second;
-            total += tmpBoneWeight[i].second;
+            weight.boneIndex[i] = tmp_bone_weight[i].first;
+            weight.boneWeight[i] = tmp_bone_weight[i].second;
+            total += tmp_bone_weight[i].second;
         }
         //正規化
         for (int i = 0; i < 4; i++) {
             weight.boneWeight[i] /= total;
         }
-        boneWeightListControlPoints.push_back(weight);
+        bone_weight_list_control_points.push_back(weight);
     }
 
     for (auto index : indexList) {
-        boneWeightList.push_back(boneWeightListControlPoints[index]);
+        boneWeightList->push_back(bone_weight_list_control_points[index]);
     }
+    FBXSDK_printf("-----------------------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //アニメーションを得る。
 //**animationStartFrame ->始まりのフレーム
 //**animationEndFrame ->終わりのフレーム
@@ -265,31 +277,32 @@ bool FbxLoader::LoadAnimation(const char* filepath)
     FbxAnimation fbx_animation;
 
     FBXSDK_printf("-----------------------------------------------\n");
-    FBXSDK_printf("loading animation start:%s---------------------\n", filepath);
+    FBXSDK_printf("loading animation start:%s\n", filepath);
     fbx_animation.fbxSceneAnimation = FbxScene::Create(this->mManagerPtr, "animationScene");
     importer->Import(fbx_animation.fbxSceneAnimation);
 
-    auto animStackCount = importer->GetAnimStackCount();
-    FBXSDK_printf("Name: %s\n", importer->GetName());
+    int animStackCount = importer->GetAnimStackCount();
+    FBXSDK_printf("[ImporterName: %s] [StackCount: %d]\n", importer->GetName(), animStackCount);
     assert(animStackCount > 0);
     for (int i = 0; i < animStackCount; i++) {
-        auto takeInfo = importer->GetTakeInfo(i);
+        auto take_info = importer->GetTakeInfo(i);
 
-        FBXSDK_printf("Name: %s\n", takeInfo->mName.Buffer());
-        auto importOffset = takeInfo->mImportOffset;
-        auto startTime = takeInfo->mLocalTimeSpan.GetStart();
-        auto stopTime = takeInfo->mLocalTimeSpan.GetStop();
+        FBXSDK_printf("[AnimationName: %s] [index: %d]\n", take_info->mName.Buffer(), i);
+        auto import_offset = take_info->mImportOffset;
+        auto start_time = take_info->mLocalTimeSpan.GetStart();
+        auto stop_time = take_info->mLocalTimeSpan.GetStop();
 
-        fbx_animation.animationStartFrame = (importOffset.Get() + startTime.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
-        fbx_animation.animationEndFrame = (importOffset.Get() + stopTime.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
+        fbx_animation.animationStartFrame = (import_offset.Get() + start_time.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
+        fbx_animation.animationEndFrame = (import_offset.Get() + stop_time.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 
         // ノード名からノードIDを取得できるように辞書に登録
-        auto nodeCount = fbx_animation.fbxSceneAnimation->GetNodeCount();
+        int nodeCount = fbx_animation.fbxSceneAnimation->GetNodeCount();
         FBXSDK_printf("animationNodeCount: %d\n", nodeCount);
         for (int i = 0; i < nodeCount; ++i)
         {
-            auto fbxNode = fbx_animation.fbxSceneAnimation->GetNode(i);
-            fbx_animation.nodeIdDictionaryAnimation.insert({ fbxNode->GetName(), i });
+            auto fbx_node = fbx_animation.fbxSceneAnimation->GetNode(i);
+            fbx_animation.nodeIdDictionaryAnimation.insert({ fbx_node->GetName(), i });
+            FBXSDK_printf("- add node [bone name:[%s], index:[%d]]\n", fbx_node->GetName(), i);
         }
         FBXSDK_printf("strtframe %f\n", fbx_animation.GetAnimationStartFrame());
         FBXSDK_printf("endframe %f\n", fbx_animation.GetAnimationEndFrame());
@@ -299,77 +312,86 @@ bool FbxLoader::LoadAnimation(const char* filepath)
     importer->Destroy();
     return true;
 }
-
+//------------------------------------------------------------------------------------------
 void FbxLoader::Finalize() {
     this->mMeshList.clear();
     this->mMaterialList.clear();
     this->mMaterialIdDictionary.clear();
     this->mNodeIdDictionary.clear();
 }
-
+//------------------------------------------------------------------------------------------
 //ノードを巡る
 void FbxLoader::ParseNode(FbxNode *node) {
-    int numChildren = node->GetChildCount();
-    FbxNode *childNode = 0;
-    for (int i = 0; i < numChildren; i++) {
-        childNode = node->GetChild(i);
-        FbxMesh* mesh = childNode->GetMesh();
+    FBXSDK_printf("-----------------------------------------------\n");
+    FBXSDK_printf("parse node\n");
+    FBXSDK_printf("node name:%s\n", node->GetName());
+    int child_num = node->GetChildCount();
+    FBXSDK_printf("node count:%d\n", child_num);
+    FbxNode *child_node = 0;
+    for (int i = 0; i < child_num; i++) {
+        child_node = node->GetChild(i);
+        FBXSDK_printf("child[%d] name:%s\n", i, child_node->GetName());
+        FbxMesh* mesh = child_node->GetMesh();
         if (mesh != NULL) {
+            FBXSDK_printf("-----------------------------------------------\n");
+            FBXSDK_printf("parse mesh\n");
             this->mMeshList.push_back(this->ParseMesh(mesh));
             ParseMaterialList(mesh);
+            FBXSDK_printf("--parse mesh-----------------------------------\n");
         }
-        ParseNode(childNode);
+        ParseNode(child_node);
     }
+    FBXSDK_printf("-parse node end--------------------------------\n");
 }
-
+//------------------------------------------------------------------------------------------
 //得られたメッシュを走査して頂点・インデックス・法線・ウェイト・ボーンインデックスを得てリストにプッシュする
 ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
     auto node = mesh->GetNode();
 
-    ModelMesh modelMesh;
-    modelMesh.nodeName = node->GetName();
+    ModelMesh model_mesh;
+    model_mesh.nodeName = node->GetName();
     if (fbxsdk::FbxSurfaceMaterial* mt = node->GetMaterial(0)) {
-        modelMesh.materialName = mt->GetName();
+        model_mesh.materialName = mt->GetName();
     }
     else {
-        modelMesh.materialName = "";
+        model_mesh.materialName = "";
     }
-    printf(">> mesh: %s\n", modelMesh.nodeName.c_str());
-
+    printf(">> mesh: %s\n", model_mesh.nodeName.c_str());
     //ベースポーズの逆行列？
-    auto baseposeMatrix = node->EvaluateGlobalTransform().Inverse();
-    auto baseposeMatrixPtr = (double*)baseposeMatrix;
+    auto basepose_matrix = node->EvaluateGlobalTransform().Inverse();
+    auto basepose_matrix_ptr = (double*)basepose_matrix;
 
     for (int i = 0; i < 16; i++) {
-        modelMesh.invMeshBaseposeMatrix[i / 4][i % 4] = (float)baseposeMatrixPtr[i];
+        model_mesh.invMeshBaseposeMatrix[i / 4][i % 4] = (float)basepose_matrix_ptr[i];
     }
 
     //インデックス取得フェイズ
-    auto indexList = GetIndexList(mesh);
-
+    std::vector<int> index_list;
+    GetIndexList(&index_list, *mesh);
     //頂点を取得
-    auto positionList = GetPositionList(mesh, indexList);
-    auto normalList = GetNormalList(mesh, indexList);
-    auto uvList = GetUVList(mesh, indexList, 0);
+    std::vector<glm::vec3> position_list;
+    GetPositionList(&position_list, *mesh, index_list);
+    std::vector<glm::vec3> normal_list;
+    GetNormalList(&normal_list, *mesh, index_list);
+    std::vector<glm::vec2> uv_list;
+    GetUVList(&uv_list, *mesh, index_list, 0);
 
-    std::vector<ModelBoneWeight> boneWeightList;
-    GetWeight(mesh, indexList, boneWeightList, modelMesh.boneNodeNameList, modelMesh.invBoneBaseposeMatrixList);
+    std::vector<ModelBoneWeight> bone_weight_list;
+    GetWeight(&bone_weight_list, &model_mesh.boneNodeNameList, &model_mesh.invBoneBaseposeMatrixList, *mesh, index_list);
 
-    std::vector<ModelVertex> modelVertexList;
-    modelVertexList.reserve(indexList.size());
+    std::vector<ModelVertex> model_vertex_list;
+    model_vertex_list.reserve(index_list.size());
 
-    for (unsigned int i = 0; i < indexList.size(); i++) {
+    for (unsigned int i = 0; i < index_list.size(); i++) {
         ModelVertex vertex;
-        vertex.position = positionList[i];
-        vertex.normal = normalList[i];
-        vertex.uv = (uvList.size() == 0)
-            ? glm::vec2(0.0f, 0.0f)
-            : uvList[i];
-        if (boneWeightList.size() > 0) {
+        vertex.position = position_list[i];
+        vertex.normal = normal_list[i];
+        vertex.uv = (uv_list.size() == 0) ? glm::vec2(0.0f, 0.0f) : uv_list[i];
+        if (bone_weight_list.size() > 0) {
             for (int j = 0; j < 4; ++j) {
-                vertex.boneIndex[j] = boneWeightList[i].boneIndex[j];
+                vertex.boneIndex[j] = bone_weight_list[i].boneIndex[j];
             }
-            vertex.boneWeight = boneWeightList[i].boneWeight;
+            vertex.boneWeight = bone_weight_list[i].boneWeight;
         }
         else {
             for (int j = 0; j < 4; ++j) {
@@ -377,161 +399,161 @@ ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
             }
             vertex.boneWeight = glm::vec4(1, 0, 0, 0);
         }
-        modelVertexList.push_back(vertex);
+        model_vertex_list.push_back(vertex);
     }
 
     //glDrawArrays()による描画が可能になる。
     //インデックスのターン
     //重複頂点を除く
-    auto& modelVertexListOpt = modelMesh.vertexList;
-    modelVertexListOpt.reserve(modelVertexList.size());
+    auto& model_vertex_list_opt = model_mesh.vertexList;
+    model_vertex_list_opt.reserve(model_vertex_list.size());
 
-    auto& modelIndexList = modelMesh.indexList;
-    modelIndexList.reserve(indexList.size());
+    auto& model_index_list = model_mesh.indexList;
+    model_index_list.reserve(index_list.size());
 
-    for (auto& vertex : modelVertexList) {
+    for (auto& vertex : model_vertex_list) {
         //重複しているか
-        auto it = std::find(modelVertexListOpt.begin(), modelVertexListOpt.end(), vertex);
-        if (it == modelVertexListOpt.end()) {
+        auto it = std::find(model_vertex_list_opt.begin(), model_vertex_list_opt.end(), vertex);
+        if (it == model_vertex_list_opt.end()) {
             //itがリストの最後を指しているので、重複していない。
-            modelIndexList.push_back((unsigned short)modelVertexListOpt.size());
-            modelVertexListOpt.push_back(vertex);
+            model_index_list.push_back((unsigned short)model_vertex_list_opt.size());
+            model_vertex_list_opt.push_back(vertex);
         }
         else {
             //重複している
-            auto index = std::distance(modelVertexListOpt.begin(), it);
-            modelIndexList.push_back((unsigned short)index);
+            auto index = std::distance(model_vertex_list_opt.begin(), it);
+            model_index_list.push_back((unsigned short)index);
         }
     }
-    printf("Opt: %lu -> %lu\n", (unsigned short)modelVertexList.size(), (unsigned short)modelVertexListOpt.size());
-    return modelMesh;
+    FBXSDK_printf("Opt: %lu -> %lu\n", (unsigned short)model_vertex_list.size(), (unsigned short)model_vertex_list_opt.size());
+    return model_mesh;
 }
-
+//------------------------------------------------------------------------------------------
 //あるフレームにおける
-void FbxLoader::GetMeshMatrix(float frame, int meshId, glm::mat4 *out_matrix, int animNum) const {
-    auto& modelMesh = this->mMeshList[meshId];
-    auto it = this->mAnimationArray[animNum].nodeIdDictionaryAnimation.find(modelMesh.nodeName);
+void FbxLoader::GetMeshMatrix(glm::mat4 *out_matrix, float frame, int mesh_id, int anim_num) const {
+    auto& model_mesh = this->mMeshList[mesh_id];
+    auto it = this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.find(model_mesh.nodeName);
 
-    if (it == this->mAnimationArray[animNum].nodeIdDictionaryAnimation.end()) {
+    if (it == this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.end()) {
         *out_matrix = glm::mat4(1.0);
-        return;	//ここが存在するのは顔のせい。
+        return;
     }
-    assert(animNum < this->mAnimationArray.size());
-    auto meshNodeId = it->second;
-    auto meshNode = this->mAnimationArray[animNum].fbxSceneAnimation->GetNode(meshNodeId);
+    assert(anim_num < this->mAnimationArray.size());
+    auto mesh_node_id = it->second;
+    auto mesh_node = this->mAnimationArray[anim_num].fbxSceneAnimation->GetNode(mesh_node_id);
 
     FbxTime time;
     time.Set(FbxTime::GetOneFrameValue(FbxTime::eFrames60)*(fbxsdk::FbxLongLong)frame);
 
-    auto& meshMatrix = meshNode->EvaluateGlobalTransform(time);
-    auto meshMatrixPtr = (double*)meshMatrix;
+    auto& mesh_matrix = mesh_node->EvaluateGlobalTransform(time);
+    auto mesh_matrix_ptr = (double*)mesh_matrix;
     for (int i = 0; i < 16; i++) {
-        (*out_matrix)[i / 4][i % 4] = (float)meshMatrixPtr[i];
+        (*out_matrix)[i / 4][i % 4] = (float)mesh_matrix_ptr[i];
     }
-    *out_matrix = *out_matrix* modelMesh.invMeshBaseposeMatrix;
+    *out_matrix = *out_matrix* model_mesh.invMeshBaseposeMatrix;
 }
-
-void FbxLoader::GetBoneMatrix(float frame, int meshId, glm::mat4 *out_matrixList, int matrixCount, int animNum) const {
-    auto& modelMesh = this->mMeshList[meshId];
-    if (modelMesh.boneNodeNameList.size() == 0)
+//------------------------------------------------------------------------------------------
+void FbxLoader::GetBoneMatrix(glm::mat4 *out_matrix_list, float frame, int meshId, int matrix_count, int anim_num) const {
+    auto& model_mesh = this->mMeshList[meshId];
+    if (model_mesh.boneNodeNameList.size() == 0)
     {
-        out_matrixList[0] = glm::mat4(1.0);
-        //printf("no bone\n");
+        out_matrix_list[0] = glm::mat4(1.0);
+        FBXSDK_printf("no bone\n");
         return;
     }
-    assert(modelMesh.boneNodeNameList.size() <= matrixCount);
-    assert(animNum < this->mAnimationArray.size());
+    assert(model_mesh.boneNodeNameList.size() <= matrix_count);
+    assert(anim_num < this->mAnimationArray.size());
 
     FbxTime time;
     time.Set(FbxTime::GetOneFrameValue(FbxTime::eFrames60) * (fbxsdk::FbxLongLong)frame);
 
-    unsigned int size = (unsigned int)modelMesh.boneNodeNameList.size();
+    unsigned int size = (unsigned int)model_mesh.boneNodeNameList.size();
     for (unsigned int i = 0; i < size; ++i)
     {
-        auto& boneNodeName = modelMesh.boneNodeNameList[i];
-        int boneNodeId = this->mAnimationArray[animNum].nodeIdDictionaryAnimation.at(boneNodeName);
-        auto boneNode = this->mAnimationArray[animNum].fbxSceneAnimation->GetNode(boneNodeId);
+        auto& bone_node_name = model_mesh.boneNodeNameList[i];
+        int bone_node_id = this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.at(bone_node_name);
+        auto bone_node = this->mAnimationArray[anim_num].fbxSceneAnimation->GetNode(bone_node_id);
 
-        auto& boneMatrix = boneNode->EvaluateGlobalTransform(time);
-        auto& out_matrix = out_matrixList[i];
+        auto& bone_matrix = bone_node->EvaluateGlobalTransform(time);
+        auto& out_matrix = out_matrix_list[i];
 
-        auto boneMatrixPtr = (double*)boneMatrix;
+        auto bone_matrix_ptr = (double*)bone_matrix;
         for (int j = 0; j < 16; j++) {
-            out_matrix[j / 4][j % 4] = (float)boneMatrixPtr[j];
+            out_matrix[j / 4][j % 4] = (float)bone_matrix_ptr[j];
         }
-        out_matrix = out_matrix * modelMesh.invBoneBaseposeMatrixList[i];
+        out_matrix = out_matrix * model_mesh.invBoneBaseposeMatrixList[i];
     }
 
 }
-void FbxLoader::GetBoneMatrix(float frame, int meshId, glm::mat4 *out_matrixList, glm::mat4 *matrixList, int matrixCount, int animNum) const {
-    auto& modelMesh = this->mMeshList[meshId];
-    unsigned int size = (unsigned int)modelMesh.boneNodeNameList.size();
+//------------------------------------------------------------------------------------------
+void FbxLoader::GetBoneMatrix(glm::mat4 *out_matrix_list, float frame, int mesh_id, glm::mat4* matrix_list, int matrix_count, int anim_num) const {
+    auto& model_mesh = this->mMeshList[mesh_id];
+    unsigned int size = (unsigned int)model_mesh.boneNodeNameList.size();
     for (unsigned int i = 0; i < size; ++i)
     {
-        out_matrixList[i] = matrixList[i];
+        out_matrix_list[i] = matrix_list[i];
     }
-
 }
-
+//------------------------------------------------------------------------------------------
 void FbxLoader::ParseMaterialList(FbxMesh *mesh)
 {
     FbxNode *node = mesh->GetNode();
-    int matCount = node->GetMaterialCount();
-    FBXSDK_printf("material count: %d\n", matCount);
-    for (int i = 0; i < matCount; i++) {
+    int material_count = node->GetMaterialCount();
+    FBXSDK_printf("material count: %d\n", material_count);
+    for (int i = 0; i < material_count; i++) {
         FbxSurfaceMaterial *material = node->GetMaterial(i);
         ParseMaterial(material);
     }
 }
-
+//------------------------------------------------------------------------------------------
 void FbxLoader::ParseMaterial(FbxSurfaceMaterial* material) {
     ModelMaterial mtl;
 
     auto implementation = GetImplementation(material, FBXSDK_IMPLEMENTATION_CGFX);
     if (implementation) {
         //if (material->GetClassId().Is(FbxSurfaceLambert::ClassId)){
-        auto rootTable = implementation->GetRootTable();
-        auto entryCount = rootTable->GetEntryCount();
-        for (int k = 0; k < entryCount; k++) {
-            auto entry = rootTable->GetEntry(k);
+        auto root_table = implementation->GetRootTable();
+        auto entry_count = root_table->GetEntryCount();
+        for (int k = 0; k < entry_count; k++) {
+            auto entry = root_table->GetEntry(k);
 
-            auto fbxProperty = material->FindPropertyHierarchical(entry.GetSource());
-            if (!fbxProperty.IsValid()) {
-                fbxProperty = material->RootProperty.FindHierarchical(entry.GetSource());
+            auto fbx_property = material->FindPropertyHierarchical(entry.GetSource());
+            if (!fbx_property.IsValid()) {
+                fbx_property = material->RootProperty.FindHierarchical(entry.GetSource());
             }
 
-            auto textureCount = fbxProperty.GetSrcObjectCount<FbxTexture>();
-            if (textureCount > 0) {
+            auto texture_count = fbx_property.GetSrcObjectCount<FbxTexture>();
+            if (texture_count > 0) {
                 std::string src = entry.GetSource();
 
-                for (int j = 0; j < fbxProperty.GetSrcObjectCount<FbxFileTexture>(); j++) {
-                    auto tex = fbxProperty.GetSrcObject<FbxFileTexture>(j);
-                    std::string texName = tex->GetFileName();
-                    texName = texName.substr(texName.find_last_of('/') + 1);
+                for (int j = 0; j < fbx_property.GetSrcObjectCount<FbxFileTexture>(); j++) {
+                    auto tex = fbx_property.GetSrcObject<FbxFileTexture>(j);
+                    std::string tex_name = tex->GetFileName();
+                    tex_name = tex_name.substr(tex_name.find_last_of('/') + 1);
 
                     if (src == "Maya|DiffuseTexture") {
-                        mtl.diffuseTextureName = texName;
+                        mtl.diffuseTextureName = tex_name;
                     }
                     else if (src == "Maya|NormalTexture") {
-                        mtl.normalTextureName = texName;
+                        mtl.normalTextureName = tex_name;
                     }
                     else if (src == "Maya|SpecularTexture") {
-                        mtl.specularTextureName = texName;
+                        mtl.specularTextureName = tex_name;
                     }
                     else if (src == "Maya|FalloffTexture") {
-                        mtl.falloffTextureName = texName;
+                        mtl.falloffTextureName = tex_name;
                     }
                     else if (src == "Maya|ReflectionMapTexture") {
-                        mtl.reflectionMapTextureName = texName;
+                        mtl.reflectionMapTextureName = tex_name;
                     }
                 }
             }
         }
         mtl.materialName = material->GetName();
-        printf("diffuseTexture: %s\n", mtl.diffuseTextureName.c_str());
-        printf("normalTexture: %s\n", mtl.normalTextureName.c_str());
-        printf("specularTexture: %s\n", mtl.specularTextureName.c_str());
-        printf("falloffTexture: %s\n", mtl.falloffTextureName.c_str());
+        printf("diffuseTexture      : %s\n", mtl.diffuseTextureName.c_str());
+        printf("normalTexture       : %s\n", mtl.normalTextureName.c_str());
+        printf("specularTexture     : %s\n", mtl.specularTextureName.c_str());
+        printf("falloffTexture      : %s\n", mtl.falloffTextureName.c_str());
         printf("reflectionMapTexture: %s\n", mtl.reflectionMapTextureName.c_str());
         this->mMaterialList.push_back(mtl);
         this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //辞書登録
@@ -539,17 +561,17 @@ void FbxLoader::ParseMaterial(FbxSurfaceMaterial* material) {
         mMaterialNum++;
     }
     else {
-        FbxProperty lProperty = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-        int layerNum = lProperty.GetSrcObjectCount<FbxLayeredTexture>();
+        FbxProperty property = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
+        int layerNum = property.GetSrcObjectCount<FbxLayeredTexture>();
         if (layerNum == 0) {
-            int fileTextureCount = lProperty.GetSrcObjectCount<FbxFileTexture>();
-            FBXSDK_printf("Texture Count:%d\n", fileTextureCount);
-            for (int j = 0; j < fileTextureCount; j++) {
-                FbxFileTexture* pFileTexture = FbxCast<FbxFileTexture>(lProperty.GetSrcObject<FbxTexture>(j));
-                std::string texName = (char*)pFileTexture->GetFileName();
-                texName = texName.substr(texName.find_last_of('/') + 1);
+            int file_texture_count = property.GetSrcObjectCount<FbxFileTexture>();
+            FBXSDK_printf("Texture Count:%d\n", file_texture_count);
+            for (int j = 0; j < file_texture_count; j++) {
+                FbxFileTexture* file_texture = FbxCast<FbxFileTexture>(property.GetSrcObject<FbxTexture>(j));
+                std::string tex_name = (char*)file_texture->GetFileName();
+                tex_name = tex_name.substr(tex_name.find_last_of('/') + 1);
 
-                mtl.diffuseTextureName = texName;
+                mtl.diffuseTextureName = tex_name;
                 mtl.materialName = material->GetName();
                 this->mMaterialList.push_back(mtl);
                 this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //辞書登録
@@ -560,5 +582,5 @@ void FbxLoader::ParseMaterial(FbxSurfaceMaterial* material) {
         }
     }
 }
-
-}
+//------------------------------------------------------------------------------------------
+} // fbx
