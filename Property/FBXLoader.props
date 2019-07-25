@@ -5,11 +5,13 @@
   <PropertyGroup>
     <IncludePath>$(GLM_ROOT);$(FBXSDK_ROOT)/include;$(IncludePath)</IncludePath>
     <LibraryPath>$(FBXSDK_ROOT)\lib\vs2015\x64\debug;$(LibraryPath)</LibraryPath>
+    <OutDir>$(FBXLOADER_ROOT)/lib</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>libfbxsdk-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <NoEntryPoint>false</NoEntryPoint>
+      <AdditionalLibraryDirectories>$(FBXLOADER_ROOT)/lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
