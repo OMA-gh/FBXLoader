@@ -12,9 +12,10 @@ FbxLoader::FbxLoader() {
 FbxLoader::~FbxLoader()
 {
     this->mManagerPtr->Destroy();
+    this->Finalize();
 }
 
-bool FbxLoader::Initialize(const char* filepath) {
+bool FbxLoader::Initialize(const char* filepath, const char* animetion_path) {
     this->mManagerPtr = FbxManager::Create();
     auto io_setting = FbxIOSettings::Create(this->mManagerPtr, IOSROOT);
     this->mManagerPtr->SetIOSettings(io_setting);
@@ -54,14 +55,14 @@ bool FbxLoader::Initialize(const char* filepath) {
         ParseNode(root_node);
     }
 
-    this->LoadAnimation("Resources/oma_2_anim.fbx");
+    this->LoadAnimation(animetion_path);
     
     return true;
 }
 //------------------------------------------------------------------------------------------
 //メッシュに置けるインデックスのリストを返す
 void GetIndexList(std::vector<int>* index_list, const FbxMesh& mesh) {
-    auto polygon_count = mesh.GetPolygonCount();
+    int polygon_count = mesh.GetPolygonCount();
     FBXSDK_printf("-----------------------------------------------\n");
     FBXSDK_printf("loading index start\n");
     FBXSDK_printf("polygon count:[%d]\n", polygon_count);
@@ -81,29 +82,29 @@ void GetPositionList(std::vector<glm::vec3>* position_list, const FbxMesh& mesh,
     FBXSDK_printf("loading position start\n");
     position_list->reserve(indexList.size());
 
-    for (auto index : indexList) {
-        auto controlPoint = mesh.GetControlPointAt(index);
-        position_list->push_back(glm::vec3(controlPoint[0], controlPoint[1], controlPoint[2]));
+    for (int index : indexList) {
+        auto control_point = mesh.GetControlPointAt(index);
+        position_list->push_back(glm::vec3(control_point[0], control_point[1], control_point[2]));
     }
     FBXSDK_printf("-----------------------------------------------\n");
 }
 //------------------------------------------------------------------------------------------
 //これはメッシュの法線のリストを返す
-void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, const std::vector<int> &indexList) {
+void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, const std::vector<int> &index_list) {
     FBXSDK_printf("-----------------------------------------------\n");
     FBXSDK_printf("loading normal start\n");
-    auto elementCount = mesh.GetElementNormalCount();
+    int element_count = mesh.GetElementNormalCount();
     auto element = mesh.GetElementNormal();
-    auto mappingMode = element->GetMappingMode();
+    auto mapping_mode = element->GetMappingMode();
     auto referenceMode = element->GetReferenceMode();
     const auto& indexArray = element->GetIndexArray();
     const auto& directArray = element->GetDirectArray();
 
-    normal_list->reserve(indexList.size());
+    normal_list->reserve(index_list.size());
 
     //マッピングモードでfbxファイル内の法線のデータが違う
-    if (mappingMode == FbxGeometryElement::eByControlPoint) {
-        for (auto index : indexList) {
+    if (mapping_mode == FbxGeometryElement::eByControlPoint) {
+        for (auto index : index_list) {
             auto normalIndex = (referenceMode == FbxGeometryElement::eDirect) ?
                 index : indexArray.GetAt(index);
             //リファレンスモードがeDirectならば、法線はそのまま入っている。
@@ -113,7 +114,7 @@ void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, con
             normal_list->push_back(glm::vec3(normal[0], normal[1], normal[2]));
         }
     }
-    else if (mappingMode == FbxGeometryElement::eByPolygonVertex) {
+    else if (mapping_mode == FbxGeometryElement::eByPolygonVertex) {
         auto indexByPolygonVertex = 0;
         auto polygonCount = mesh.GetPolygonCount();
         for (int i = 0; i < polygonCount; i++) {
@@ -136,42 +137,42 @@ void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, con
 }
 //------------------------------------------------------------------------------------------
 //メッシュ毎のテクスチャ座標をリストにして返す
-void GetUVList(std::vector<glm::vec2>* uv_list,const FbxMesh& mesh, const std::vector<int>& indexList, int uvNo) {
+void GetUVList(std::vector<glm::vec2>* uv_list,const FbxMesh& mesh, const std::vector<int>& index_list, int uv_no) {
     FBXSDK_printf("-----------------------------------------------\n");
     FBXSDK_printf("loading uv start\n");
-    auto elementCout = mesh.GetElementUVCount();
-    if (uvNo + 1 > elementCout) {
+    int element_cout = mesh.GetElementUVCount();
+    if (uv_no + 1 > element_cout) {
         return;
     }
-    auto element = mesh.GetElementUV(uvNo);
-    auto mappingMode = element->GetMappingMode();
-    auto referenceMode = element->GetReferenceMode();
-    const auto& indexArray = element->GetIndexArray();
-    const auto& directArray = element->GetDirectArray();
+    auto element = mesh.GetElementUV(uv_no);
+    auto mapping_mode = element->GetMappingMode();
+    auto reference_mode = element->GetReferenceMode();
+    const auto& index_array = element->GetIndexArray();
+    const auto& direct_array = element->GetDirectArray();
 
-    uv_list->reserve(indexList.size());
-    if (mappingMode == FbxGeometryElement::eByControlPoint) {
+    uv_list->reserve(index_list.size());
+    if (mapping_mode == FbxGeometryElement::eByControlPoint) {
         //法線とだいたい同じ
-        for (auto index : indexList) {
-            auto uvIndex = (referenceMode == FbxGeometryElement::eDirect)
+        for (auto index : index_list) {
+            auto uvIndex = (reference_mode == FbxGeometryElement::eDirect)
                 ? index
-                : indexArray.GetAt(index);
-            auto uv = directArray.GetAt(uvIndex);
+                : index_array.GetAt(index);
+            auto uv = direct_array.GetAt(uvIndex);
             uv_list->push_back(glm::vec2(uv[0], uv[1]));
         }
     }
-    else if (mappingMode == FbxGeometryElement::eByPolygonVertex) {
-        auto indexByPolygonVetex = 0;
-        auto polygonCount = mesh.GetPolygonCount();
-        for (int i = 0; i < polygonCount; i++) {
-            auto polygonSize = mesh.GetPolygonSize(i);
-            for (int j = 0; j < polygonSize; j++) {
-                auto uvIndex = (referenceMode == FbxGeometryElement::eDirect)
-                    ? indexByPolygonVetex
-                    : indexArray.GetAt(indexByPolygonVetex);
-                auto uv = directArray.GetAt(uvIndex);
+    else if (mapping_mode == FbxGeometryElement::eByPolygonVertex) {
+        int index_by_polygon_vetex = 0;
+        int polygon_count = mesh.GetPolygonCount();
+        for (int i = 0; i < polygon_count; i++) {
+            int polygon_size = mesh.GetPolygonSize(i);
+            for (int j = 0; j < polygon_size; j++) {
+                int uv_index = (reference_mode == FbxGeometryElement::eDirect)
+                    ? index_by_polygon_vetex
+                    : index_array.GetAt(index_by_polygon_vetex);
+                auto uv = direct_array.GetAt(uv_index);
                 uv_list->push_back(glm::vec2(uv[0], uv[1]));
-                ++indexByPolygonVetex;
+                ++index_by_polygon_vetex;
             }
         }
     }
@@ -183,7 +184,7 @@ void GetUVList(std::vector<glm::vec2>* uv_list,const FbxMesh& mesh, const std::v
 }
 //------------------------------------------------------------------------------------------
 //ウェイトをメッシュごとに手に入れて返す
-void GetWeight(std::vector<ModelBoneWeight>* boneWeightList, std::vector<std::string>* boneNodeNameList, std::vector<glm::mat4>* invBaseposeMatrixList, const FbxMesh& mesh, const std::vector<int>& indexList) {
+void GetWeight(std::vector<ModelBoneWeight>* bone_weight_list, std::vector<std::string>* bone_node_name_list, std::vector<glm::mat4>* inv_basepose_matrix_list, const FbxMesh& mesh, const std::vector<int>& index_list) {
     FBXSDK_printf("-----------------------------------------------\n");
     FBXSDK_printf("loading bone weight start\n");
     int skin_count = mesh.GetDeformerCount(FbxDeformer::eSkin);
@@ -197,40 +198,40 @@ void GetWeight(std::vector<ModelBoneWeight>* boneWeightList, std::vector<std::st
     int control_points_count = mesh.GetControlPointsCount();
     using TmpWeight = std::pair<int, float>;
     std::vector<std::vector<TmpWeight>> tmp_bone_weight_list(control_points_count);
+    FBXSDK_printf("mesh control point count:%d\n", control_points_count);
 
     auto skin = static_cast<FbxSkin*>(mesh.GetDeformer(0, FbxDeformer::eSkin));
 
-    auto cluster_count = skin->GetClusterCount();
+    int cluster_count = skin->GetClusterCount();
     FBXSDK_printf("cluster count:[%d]\n", cluster_count);
     for (int i = 0; i < cluster_count; i++) {
         auto cluster = skin->GetCluster(i);
 
         assert(cluster->GetLinkMode() == FbxCluster::eNormalize);
 
-        boneNodeNameList->push_back(cluster->GetLink()->GetName());
+        bone_node_name_list->push_back(cluster->GetLink()->GetName());
         FBXSDK_printf("cluster name:[%s]\n",cluster->GetLink()->GetName());
 
-        auto index_count = cluster->GetControlPointIndicesCount();
+        int index_count = cluster->GetControlPointIndicesCount();
         auto indices = cluster->GetControlPointIndices();
         auto weights = cluster->GetControlPointWeights();
 
         for (int k = 0; k < index_count; k++) {
-            int controlPointIndex = indices[k];
-            tmp_bone_weight_list[controlPointIndex].push_back({ i, weights[k] });
+            int control_point_index = indices[k];
+            tmp_bone_weight_list[control_point_index].push_back({ i, weights[k] });
         }
 
         glm::mat4 inverse_base_pose_matrix; //ベースポーズの逆行列、どっかで使うため
 
-        auto baseposeMatrix = cluster->GetLink()->EvaluateGlobalTransform().Inverse();
-        auto baseposeMatrixPtr = (double*)baseposeMatrix;
+        auto basepose_matrix = cluster->GetLink()->EvaluateGlobalTransform().Inverse();
         for (int k = 0; k < 16; k++) {
-            inverse_base_pose_matrix[k / 4][k % 4] = (float)baseposeMatrixPtr[k];
+            inverse_base_pose_matrix[k / 4][k % 4] = (float)(basepose_matrix[k / 4][k % 4]);
         }
-        invBaseposeMatrixList->push_back(inverse_base_pose_matrix);
+        inv_basepose_matrix_list->push_back(inverse_base_pose_matrix);
     }
 
     std::vector<ModelBoneWeight> bone_weight_list_control_points;
-    FBXSDK_printf("bone weight count:[%d]\n", bone_weight_list_control_points.size());
+    FBXSDK_printf("bone weight count:[%d]\n", (int)tmp_bone_weight_list.size());
     for (auto& tmp_bone_weight : tmp_bone_weight_list) {
         //ウェイトの大きさでソート
         std::sort(tmp_bone_weight.begin(), tmp_bone_weight.end(), [](const TmpWeight& weightA, const TmpWeight& weightB) { return weightA.second > weightB.second; });
@@ -253,11 +254,18 @@ void GetWeight(std::vector<ModelBoneWeight>* boneWeightList, std::vector<std::st
         for (int i = 0; i < 4; i++) {
             weight.boneWeight[i] /= total;
         }
+        FBXSDK_printf("push weight %d ([0]index:%d,weight:%f)([1]index:%d,weight:%f)([2]index:%d,weight:%f)([3]index:%d,weight:%f)\n",
+            (int)bone_weight_list_control_points.size(),
+            weight.boneIndex[0], weight.boneWeight[0],
+            weight.boneIndex[1], weight.boneWeight[1],
+            weight.boneIndex[2], weight.boneWeight[2],
+            weight.boneIndex[3], weight.boneWeight[3]
+        );
         bone_weight_list_control_points.push_back(weight);
     }
 
-    for (auto index : indexList) {
-        boneWeightList->push_back(bone_weight_list_control_points[index]);
+    for (int index : index_list) {
+        bone_weight_list->push_back(bone_weight_list_control_points[index]);
     }
     FBXSDK_printf("-----------------------------------------------\n");
 }
@@ -296,9 +304,9 @@ bool FbxLoader::LoadAnimation(const char* filepath)
         fbx_animation.animationEndFrame = (import_offset.Get() + stop_time.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 
         // ノード名からノードIDを取得できるように辞書に登録
-        int nodeCount = fbx_animation.fbxSceneAnimation->GetNodeCount();
-        FBXSDK_printf("animationNodeCount: %d\n", nodeCount);
-        for (int i = 0; i < nodeCount; ++i)
+        int node_count = fbx_animation.fbxSceneAnimation->GetNodeCount();
+        FBXSDK_printf("animationNodeCount: %d\n", node_count);
+        for (int i = 0; i < node_count; ++i)
         {
             auto fbx_node = fbx_animation.fbxSceneAnimation->GetNode(i);
             fbx_animation.nodeIdDictionaryAnimation.insert({ fbx_node->GetName(), i });
@@ -371,11 +379,15 @@ ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
     //頂点を取得
     std::vector<glm::vec3> position_list;
     GetPositionList(&position_list, *mesh, index_list);
+    FBXSDK_printf("*[position num : %d]*\n", (int)position_list.size());
     std::vector<glm::vec3> normal_list;
     GetNormalList(&normal_list, *mesh, index_list);
+    FBXSDK_printf("*[normal num : %d]*\n", (int)normal_list.size());
     std::vector<glm::vec2> uv_list;
     GetUVList(&uv_list, *mesh, index_list, 0);
+    FBXSDK_printf("*[uv num : %d]*\n", (int)uv_list.size());
 
+    // ボーン取得
     std::vector<ModelBoneWeight> bone_weight_list;
     GetWeight(&bone_weight_list, &model_mesh.boneNodeNameList, &model_mesh.invBoneBaseposeMatrixList, *mesh, index_list);
 
@@ -522,7 +534,7 @@ void FbxLoader::ParseMaterial(FbxSurfaceMaterial* material) {
                 fbx_property = material->RootProperty.FindHierarchical(entry.GetSource());
             }
 
-            auto texture_count = fbx_property.GetSrcObjectCount<FbxTexture>();
+            int texture_count = fbx_property.GetSrcObjectCount<FbxTexture>();
             if (texture_count > 0) {
                 std::string src = entry.GetSource();
 
@@ -562,8 +574,8 @@ void FbxLoader::ParseMaterial(FbxSurfaceMaterial* material) {
     }
     else {
         FbxProperty property = material->FindProperty(FbxSurfaceMaterial::sDiffuse);
-        int layerNum = property.GetSrcObjectCount<FbxLayeredTexture>();
-        if (layerNum == 0) {
+        int layer_num = property.GetSrcObjectCount<FbxLayeredTexture>();
+        if (layer_num == 0) {
             int file_texture_count = property.GetSrcObjectCount<FbxFileTexture>();
             FBXSDK_printf("Texture Count:%d\n", file_texture_count);
             for (int j = 0; j < file_texture_count; j++) {

@@ -1,5 +1,5 @@
 /********************************************************/
-/*          FBX“Ç‚İ‚İ’¼Ú•”•ª                                                     */
+/*          FBX“Ç‚İ‚İ’¼Ú•”•ª                         */
 /********************************************************/
 #pragma once
 
@@ -84,7 +84,7 @@ public:
     FbxLoader();
     ~FbxLoader();
 
-    bool Initialize(const char* filepath);
+    bool Initialize(const char* filepath, const char* animetion_path);
     void Finalize();
 
 public:
