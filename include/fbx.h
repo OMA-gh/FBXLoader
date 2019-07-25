@@ -5,8 +5,8 @@
 
 #include <string>
 #include <vector>
-#include<algorithm>
-#include<map>
+#include <algorithm>
+#include <map>
 #include <glm/glm.hpp>
 #include <fbxsdk.h>
 
