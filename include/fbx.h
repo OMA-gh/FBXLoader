@@ -1,12 +1,12 @@
 /********************************************************/
-/*          FBX“Ç‚İ‚İ’¼Ú•”•ª                                                     */
+/*          FBX“Ç‚İ‚İ’¼Ú•”•ª                         */
 /********************************************************/
 #pragma once
 
 #include <string>
 #include <vector>
-#include<algorithm>
-#include<map>
+#include <algorithm>
+#include <map>
 #include <glm/glm.hpp>
 #include <fbxsdk.h>
 
