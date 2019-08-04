@@ -19,13 +19,13 @@ bool FbxLoader::Initialize(const char* filepath, const char* animetion_path) {
     this->mManagerPtr = FbxManager::Create();
     auto io_setting = FbxIOSettings::Create(this->mManagerPtr, IOSROOT);
     this->mManagerPtr->SetIOSettings(io_setting);
-    auto imporeter = FbxImporter::Create(this->mManagerPtr, "");
-    if (!imporeter->Initialize(filepath, -1, this->mManagerPtr->GetIOSettings())) {
+    auto importer = FbxImporter::Create(this->mManagerPtr, "");
+    if (!importer->Initialize(filepath, -1, this->mManagerPtr->GetIOSettings())) {
         return false;
     }
     this->mScenePtr = FbxScene::Create(this->mManagerPtr, "myScene");
-    imporeter->Import(this->mScenePtr);
-    imporeter->Destroy();
+    importer->Import(this->mScenePtr);
+    importer->Destroy();
 
     //ポリゴンの三角形化を行う
     FbxGeometryConverter geometry_converter(this->mManagerPtr);
@@ -387,7 +387,7 @@ ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
     GetUVList(&uv_list, *mesh, index_list, 0);
     FBXSDK_printf("*[uv num : %d]*\n", (int)uv_list.size());
 
-    // ボーン取得
+    // ボーンウェイト取得
     std::vector<ModelBoneWeight> bone_weight_list;
     GetWeight(&bone_weight_list, &model_mesh.boneNodeNameList, &model_mesh.invBoneBaseposeMatrixList, *mesh, index_list);
 
