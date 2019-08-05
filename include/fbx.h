@@ -112,9 +112,12 @@ public:
         return 0;
     }
 
-    void GetMeshMatrix(glm::mat4 *out_matrix, float frame, int meshId, int animNum) const;
-    void GetBoneMatrix(glm::mat4 *out_matrixList, float frame, int meshId, int matrix_count, int anim_num) const;
-    void GetBoneMatrix(glm::mat4 *out_matrixList, float frame, int mesh_id, glm::mat4* matrix_list, int matrix_count, int anim_num) const;
+    void GetAnimationMeshMatrix(glm::mat4 *out_matrix, float frame, int meshId, int anim_index) const;
+    void GetAnimationMeshMatrix(glm::mat4 *out_matrix, float frame, const ModelMesh& mesh, int anim_index) const;
+    void GetAnimationBoneMatrix(glm::mat4 *out_matrixList, float frame, int meshId, int matrix_count, int anim_index) const;
+    void GetAnimationBoneMatrix(glm::mat4 *out_matrixList, float frame, const ModelMesh& mesh, int matrix_count, int anim_index) const;
+    void GetAnimationBoneMatrix(glm::mat4 *out_matrixList, int mesh_id, glm::mat4* matrix_list) const;
+    void GetAnimationBoneMatrix(glm::mat4 *out_matrixList, const ModelMesh& mesh, glm::mat4* matrix_list) const;
 
     bool LoadAnimation(const char* filepath);
 protected:

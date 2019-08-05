@@ -17,10 +17,13 @@ FbxLoader::~FbxLoader()
 
 bool FbxLoader::Initialize(const char* filepath, const char* animetion_path) {
     this->mManagerPtr = FbxManager::Create();
-    auto io_setting = FbxIOSettings::Create(this->mManagerPtr, IOSROOT);
+    auto* io_setting = FbxIOSettings::Create(this->mManagerPtr, IOSROOT);
     this->mManagerPtr->SetIOSettings(io_setting);
-    auto importer = FbxImporter::Create(this->mManagerPtr, "");
+    auto* importer = fbxsdk::FbxImporter::Create(this->mManagerPtr, "");
     if (!importer->Initialize(filepath, -1, this->mManagerPtr->GetIOSettings())) {
+        auto& status = importer->GetStatus();
+        std::string err = status.GetErrorString();
+        printf("FBX initialize error! [%s]\n", err.c_str());
         return false;
     }
     this->mScenePtr = FbxScene::Create(this->mManagerPtr, "myScene");
@@ -56,7 +59,7 @@ bool FbxLoader::Initialize(const char* filepath, const char* animetion_path) {
     }
 
     this->LoadAnimation(animetion_path);
-    
+
     return true;
 }
 //------------------------------------------------------------------------------------------
@@ -254,6 +257,7 @@ void GetWeight(std::vector<ModelBoneWeight>* bone_weight_list, std::vector<std::
         for (int i = 0; i < 4; i++) {
             weight.boneWeight[i] /= total;
         }
+        /*
         FBXSDK_printf("push weight %d ([0]index:%d,weight:%f)([1]index:%d,weight:%f)([2]index:%d,weight:%f)([3]index:%d,weight:%f)\n",
             (int)bone_weight_list_control_points.size(),
             weight.boneIndex[0], weight.boneWeight[0],
@@ -261,6 +265,7 @@ void GetWeight(std::vector<ModelBoneWeight>* bone_weight_list, std::vector<std::
             weight.boneIndex[2], weight.boneWeight[2],
             weight.boneIndex[3], weight.boneWeight[3]
         );
+        */
         bone_weight_list_control_points.push_back(weight);
     }
 
@@ -442,17 +447,21 @@ ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
 }
 //------------------------------------------------------------------------------------------
 //‚ ‚éƒtƒŒ[ƒ€‚É‚¨‚¯‚é
-void FbxLoader::GetMeshMatrix(glm::mat4 *out_matrix, float frame, int mesh_id, int anim_num) const {
+void FbxLoader::GetAnimationMeshMatrix(glm::mat4 *out_matrix, float frame, int mesh_id, int anim_index) const {
     auto& model_mesh = this->mMeshList[mesh_id];
-    auto it = this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.find(model_mesh.nodeName);
+    GetAnimationMeshMatrix(out_matrix, frame, model_mesh, anim_index);
+}
+//------------------------------------------------------------------------------------------
+void FbxLoader::GetAnimationMeshMatrix(glm::mat4 *out_matrix, float frame, const ModelMesh& mesh, int anim_index) const {
+    auto it = this->mAnimationArray[anim_index].nodeIdDictionaryAnimation.find(mesh.nodeName);
 
-    if (it == this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.end()) {
+    if (it == this->mAnimationArray[anim_index].nodeIdDictionaryAnimation.end()) {
         *out_matrix = glm::mat4(1.0);
         return;
     }
-    assert(anim_num < this->mAnimationArray.size());
+    assert(anim_index < this->mAnimationArray.size());
     auto mesh_node_id = it->second;
-    auto mesh_node = this->mAnimationArray[anim_num].fbxSceneAnimation->GetNode(mesh_node_id);
+    auto mesh_node = this->mAnimationArray[anim_index].fbxSceneAnimation->GetNode(mesh_node_id);
 
     FbxTime time;
     time.Set(FbxTime::GetOneFrameValue(FbxTime::eFrames60)*(fbxsdk::FbxLongLong)frame);
@@ -462,29 +471,33 @@ void FbxLoader::GetMeshMatrix(glm::mat4 *out_matrix, float frame, int mesh_id, i
     for (int i = 0; i < 16; i++) {
         (*out_matrix)[i / 4][i % 4] = (float)mesh_matrix_ptr[i];
     }
-    *out_matrix = *out_matrix* model_mesh.invMeshBaseposeMatrix;
+    *out_matrix = *out_matrix* mesh.invMeshBaseposeMatrix;
 }
 //------------------------------------------------------------------------------------------
-void FbxLoader::GetBoneMatrix(glm::mat4 *out_matrix_list, float frame, int meshId, int matrix_count, int anim_num) const {
+void FbxLoader::GetAnimationBoneMatrix(glm::mat4 *out_matrix_list, float frame, int meshId, int matrix_count, int anim_index) const {
     auto& model_mesh = this->mMeshList[meshId];
-    if (model_mesh.boneNodeNameList.size() == 0)
+    GetAnimationBoneMatrix(out_matrix_list, frame, model_mesh, matrix_count, anim_index);
+}
+//------------------------------------------------------------------------------------------
+void FbxLoader::GetAnimationBoneMatrix(glm::mat4 *out_matrix_list, float frame, const ModelMesh& mesh, int matrix_count, int anim_index) const {
+    if (mesh.boneNodeNameList.size() == 0)
     {
         out_matrix_list[0] = glm::mat4(1.0);
         FBXSDK_printf("no bone\n");
         return;
     }
-    assert(model_mesh.boneNodeNameList.size() <= matrix_count);
-    assert(anim_num < this->mAnimationArray.size());
+    assert(mesh.boneNodeNameList.size() <= matrix_count);
+    assert(anim_index < this->mAnimationArray.size());
 
     FbxTime time;
     time.Set(FbxTime::GetOneFrameValue(FbxTime::eFrames60) * (fbxsdk::FbxLongLong)frame);
 
-    unsigned int size = (unsigned int)model_mesh.boneNodeNameList.size();
+    unsigned int size = (unsigned int)mesh.boneNodeNameList.size();
     for (unsigned int i = 0; i < size; ++i)
     {
-        auto& bone_node_name = model_mesh.boneNodeNameList[i];
-        int bone_node_id = this->mAnimationArray[anim_num].nodeIdDictionaryAnimation.at(bone_node_name);
-        auto bone_node = this->mAnimationArray[anim_num].fbxSceneAnimation->GetNode(bone_node_id);
+        auto& bone_node_name = mesh.boneNodeNameList[i];
+        int bone_node_id = this->mAnimationArray[anim_index].nodeIdDictionaryAnimation.at(bone_node_name);
+        auto bone_node = this->mAnimationArray[anim_index].fbxSceneAnimation->GetNode(bone_node_id);
 
         auto& bone_matrix = bone_node->EvaluateGlobalTransform(time);
         auto& out_matrix = out_matrix_list[i];
@@ -493,14 +506,17 @@ void FbxLoader::GetBoneMatrix(glm::mat4 *out_matrix_list, float frame, int meshI
         for (int j = 0; j < 16; j++) {
             out_matrix[j / 4][j % 4] = (float)bone_matrix_ptr[j];
         }
-        out_matrix = out_matrix * model_mesh.invBoneBaseposeMatrixList[i];
+        out_matrix = out_matrix * mesh.invBoneBaseposeMatrixList[i];
     }
-
 }
 //------------------------------------------------------------------------------------------
-void FbxLoader::GetBoneMatrix(glm::mat4 *out_matrix_list, float frame, int mesh_id, glm::mat4* matrix_list, int matrix_count, int anim_num) const {
-    auto& model_mesh = this->mMeshList[mesh_id];
-    unsigned int size = (unsigned int)model_mesh.boneNodeNameList.size();
+void FbxLoader::GetAnimationBoneMatrix(glm::mat4 *out_matrix_list, int mesh_id, glm::mat4* matrix_list) const {
+    auto& model_mesh = this->mMeshList[mesh_id]; 
+    GetAnimationBoneMatrix(out_matrix_list, model_mesh, matrix_list);
+}
+//------------------------------------------------------------------------------------------
+void FbxLoader::GetAnimationBoneMatrix(glm::mat4 *out_matrix_list, const ModelMesh& mesh, glm::mat4* matrix_list) const {
+    unsigned int size = (unsigned int)mesh.boneNodeNameList.size();
     for (unsigned int i = 0; i < size; ++i)
     {
         out_matrix_list[i] = matrix_list[i];
