@@ -1,4 +1,4 @@
-#include "../include/fbx.h"
+ï»¿#include "../include/fbx.h"
 
 #include <memory>
 #include <iostream>
@@ -30,11 +30,11 @@ namespace fbx {
         importer->Import(this->mScenePtr);
         importer->Destroy();
 
-        //ƒ|ƒŠƒSƒ“‚ÌOŠpŒ`‰»‚ğs‚¤
+        //ãƒãƒªã‚´ãƒ³ã®ä¸‰è§’å½¢åŒ–ã‚’è¡Œã†
         FbxGeometryConverter geometry_converter(this->mManagerPtr);
         geometry_converter.Triangulate(this->mScenePtr, true);
 
-        //«‘‚É“o˜^‚µAƒm[ƒh–¼‚©‚çƒm[ƒh‚ÌID‚ğæ“¾‚Å‚«‚é‚æ‚¤‚É‚·‚é
+        //è¾æ›¸ã«ç™»éŒ²ã—ã€ãƒãƒ¼ãƒ‰åã‹ã‚‰ãƒãƒ¼ãƒ‰ã®IDã‚’å–å¾—ã§ãã‚‹ã‚ˆã†ã«ã™ã‚‹
         auto node_count = this->mScenePtr->GetNodeCount();
         printf("NodeCount: %d\n", node_count);
         for (int i = 0; i < node_count; i++) {
@@ -42,7 +42,7 @@ namespace fbx {
             this->mNodeIdDictionary.insert({ fbxNode->GetName(),i });
         }
 
-        //ƒ}ƒeƒŠƒAƒ‹‚Ì‰ğÍ
+        //ãƒãƒ†ãƒªã‚¢ãƒ«ã®è§£æ
         auto material_count = this->mScenePtr->GetMaterialCount();
         this->mMaterialList.reserve(material_count);
         printf("materialCount: %d\n", material_count);
@@ -63,7 +63,7 @@ namespace fbx {
         return true;
     }
     //------------------------------------------------------------------------------------------
-    //ƒƒbƒVƒ…‚É’u‚¯‚éƒCƒ“ƒfƒbƒNƒX‚ÌƒŠƒXƒg‚ğ•Ô‚·
+    //ãƒ¡ãƒƒã‚·ãƒ¥ã«ç½®ã‘ã‚‹ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®ãƒªã‚¹ãƒˆã‚’è¿”ã™
     void GetIndexList(std::vector<int>* index_list, const FbxMesh& mesh) {
         int polygon_count = mesh.GetPolygonCount();
         FBXSDK_printf("-----------------------------------------------\n");
@@ -79,7 +79,7 @@ namespace fbx {
         FBXSDK_printf("-----------------------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //’¸“_‚ÌˆÊ’uÀ•W‚ÌƒŠƒXƒg‚ğ•Ô‚·
+    //é ‚ç‚¹ã®ä½ç½®åº§æ¨™ã®ãƒªã‚¹ãƒˆã‚’è¿”ã™
     void GetPositionList(std::vector<glm::vec3>* position_list, const FbxMesh& mesh, const std::vector<int>& indexList) {
         FBXSDK_printf("-----------------------------------------------\n");
         FBXSDK_printf("loading position start\n");
@@ -92,7 +92,7 @@ namespace fbx {
         FBXSDK_printf("-----------------------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //‚±‚ê‚ÍƒƒbƒVƒ…‚Ì–@ü‚ÌƒŠƒXƒg‚ğ•Ô‚·
+    //ã“ã‚Œã¯ãƒ¡ãƒƒã‚·ãƒ¥ã®æ³•ç·šã®ãƒªã‚¹ãƒˆã‚’è¿”ã™
     void GetNormalList(std::vector<glm::vec3>* normal_list, const FbxMesh& mesh, const std::vector<int> &index_list) {
         FBXSDK_printf("-----------------------------------------------\n");
         FBXSDK_printf("loading normal start\n");
@@ -105,14 +105,14 @@ namespace fbx {
 
         normal_list->reserve(index_list.size());
 
-        //ƒ}ƒbƒsƒ“ƒOƒ‚[ƒh‚Åfbxƒtƒ@ƒCƒ‹“à‚Ì–@ü‚Ìƒf[ƒ^‚ªˆá‚¤
+        //ãƒãƒƒãƒ”ãƒ³ã‚°ãƒ¢ãƒ¼ãƒ‰ã§fbxãƒ•ã‚¡ã‚¤ãƒ«å†…ã®æ³•ç·šã®ãƒ‡ãƒ¼ã‚¿ãŒé•ã†
         if (mapping_mode == FbxGeometryElement::eByControlPoint) {
             for (auto index : index_list) {
                 auto normalIndex = (referenceMode == FbxGeometryElement::eDirect) ?
                     index : indexArray.GetAt(index);
-                //ƒŠƒtƒ@ƒŒƒ“ƒXƒ‚[ƒh‚ªeDirect‚È‚ç‚ÎA–@ü‚Í‚»‚Ì‚Ü‚Ü“ü‚Á‚Ä‚¢‚éB
-                //ƒ\ƒŒˆÈŠOA‘å‘ÌeIndextoVertex‚©‚È‚ñ‚©‚¾‚Á‚½‚çƒCƒ“ƒfƒbƒNƒX”z—ñ‚Ì”Ô†‚ğQÆ‚µ‚½
-                //–@ü‚Ìƒf[ƒ^‚ª‚ ‚é‚Ì‚Å‘´‚Ì”Ô†‚ğ‡”Ô‚Éæ‚èo‚·
+                //ãƒªãƒ•ã‚¡ãƒ¬ãƒ³ã‚¹ãƒ¢ãƒ¼ãƒ‰ãŒeDirectãªã‚‰ã°ã€æ³•ç·šã¯ãã®ã¾ã¾å…¥ã£ã¦ã„ã‚‹ã€‚
+                //ã‚½ãƒ¬ä»¥å¤–ã€å¤§ä½“eIndextoVertexã‹ãªã‚“ã‹ã ã£ãŸã‚‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹é…åˆ—ã®ç•ªå·ã‚’å‚ç…§ã—ãŸ
+                //æ³•ç·šã®ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚‹ã®ã§å…¶ã®ç•ªå·ã‚’é †ç•ªã«å–ã‚Šå‡ºã™
                 auto normal = directArray.GetAt(normalIndex);
                 normal_list->push_back(glm::vec3(normal[0], normal[1], normal[2]));
             }
@@ -121,7 +121,7 @@ namespace fbx {
             auto indexByPolygonVertex = 0;
             auto polygonCount = mesh.GetPolygonCount();
             for (int i = 0; i < polygonCount; i++) {
-                auto polygonSize = mesh.GetPolygonSize(i); //‚±‚ê‚ÍOŠp‰»‚µ‚Ä‚¢‚é‚Ì‚Å‘S•”3‚¾‚Æv‚¤
+                auto polygonSize = mesh.GetPolygonSize(i); //ã“ã‚Œã¯ä¸‰è§’åŒ–ã—ã¦ã„ã‚‹ã®ã§å…¨éƒ¨3ã ã¨æ€ã†
                 for (int j = 0; j < polygonSize; j++) {
                     auto normalIndex = (referenceMode == FbxGeometryElement::eDirect)
                         ? indexByPolygonVertex
@@ -139,7 +139,7 @@ namespace fbx {
         FBXSDK_printf("-----------------------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //ƒƒbƒVƒ…–ˆ‚ÌƒeƒNƒXƒ`ƒƒÀ•W‚ğƒŠƒXƒg‚É‚µ‚Ä•Ô‚·
+    //ãƒ¡ãƒƒã‚·ãƒ¥æ¯ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£åº§æ¨™ã‚’ãƒªã‚¹ãƒˆã«ã—ã¦è¿”ã™
     void GetUVList(std::vector<glm::vec2>* uv_list, const FbxMesh& mesh, const std::vector<int>& index_list, int uv_no) {
         FBXSDK_printf("-----------------------------------------------\n");
         FBXSDK_printf("loading uv start\n");
@@ -155,7 +155,7 @@ namespace fbx {
 
         uv_list->reserve(index_list.size());
         if (mapping_mode == FbxGeometryElement::eByControlPoint) {
-            //–@ü‚Æ‚¾‚¢‚½‚¢“¯‚¶
+            //æ³•ç·šã¨ã ã„ãŸã„åŒã˜
             for (auto index : index_list) {
                 auto uvIndex = (reference_mode == FbxGeometryElement::eDirect)
                     ? index
@@ -186,7 +186,7 @@ namespace fbx {
         FBXSDK_printf("-----------------------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //ƒEƒFƒCƒg‚ğƒƒbƒVƒ…‚²‚Æ‚Éè‚É“ü‚ê‚Ä•Ô‚·
+    //ã‚¦ã‚§ã‚¤ãƒˆã‚’ãƒ¡ãƒƒã‚·ãƒ¥ã”ã¨ã«æ‰‹ã«å…¥ã‚Œã¦è¿”ã™
     void GetWeight(std::vector<ModelBoneWeight>* bone_weight_list, std::vector<std::string>* bone_node_name_list, std::vector<glm::mat4>* inv_basepose_matrix_list, const FbxMesh& mesh, const std::vector<int>& index_list) {
         FBXSDK_printf("-----------------------------------------------\n");
         FBXSDK_printf("loading bone weight start\n");
@@ -224,7 +224,7 @@ namespace fbx {
                 tmp_bone_weight_list[control_point_index].push_back({ i, weights[k] });
             }
 
-            glm::mat4 inverse_base_pose_matrix; //ƒx[ƒXƒ|[ƒY‚Ì‹ts—ñA‚Ç‚Á‚©‚Åg‚¤‚½‚ß
+            glm::mat4 inverse_base_pose_matrix; //ãƒ™ãƒ¼ã‚¹ãƒãƒ¼ã‚ºã®é€†è¡Œåˆ—ã€ã©ã£ã‹ã§ä½¿ã†ãŸã‚
 
             auto basepose_matrix = cluster->GetLink()->EvaluateGlobalTransform().Inverse();
             for (int k = 0; k < 16; k++) {
@@ -236,15 +236,15 @@ namespace fbx {
         std::vector<ModelBoneWeight> bone_weight_list_control_points;
         FBXSDK_printf("bone weight count:[%d]\n", (int)tmp_bone_weight_list.size());
         for (auto& tmp_bone_weight : tmp_bone_weight_list) {
-            //ƒEƒFƒCƒg‚Ì‘å‚«‚³‚Åƒ\[ƒg
+            //ã‚¦ã‚§ã‚¤ãƒˆã®å¤§ãã•ã§ã‚½ãƒ¼ãƒˆ
             std::sort(tmp_bone_weight.begin(), tmp_bone_weight.end(), [](const TmpWeight& weightA, const TmpWeight& weightB) { return weightA.second > weightB.second; });
-            //Unitychan.fbx‚Æ‚©‚É‚ÍƒEƒFƒCƒg‚ª6‚Â‚Ü‚Å—pˆÓ‚³‚ê‚Ä‚¢‚éˆ×AGLSL‚Åg‚¢‚â‚·‚¢‚æ‚¤‚É4‚Â‚ÉŒ¸‚ç‚·‚Æ‚¢‚¤‚±‚Æ‚ğ‚µ‚Ä‚¢‚é
+            //Unitychan.fbxã¨ã‹ã«ã¯ã‚¦ã‚§ã‚¤ãƒˆãŒ6ã¤ã¾ã§ç”¨æ„ã•ã‚Œã¦ã„ã‚‹ç‚ºã€GLSLã§ä½¿ã„ã‚„ã™ã„ã‚ˆã†ã«4ã¤ã«æ¸›ã‚‰ã™ã¨ã„ã†ã“ã¨ã‚’ã—ã¦ã„ã‚‹
             while (tmp_bone_weight.size() > 4) {
                 tmp_bone_weight.pop_back();
             }
 
             while (tmp_bone_weight.size() < 4) {
-                tmp_bone_weight.push_back({ 0, 0.0f }); //ƒ_ƒ~[‚ğ“ü‚ê‚Æ‚­
+                tmp_bone_weight.push_back({ 0, 0.0f }); //ãƒ€ãƒŸãƒ¼ã‚’å…¥ã‚Œã¨ã
             }
             ModelBoneWeight weight;
             float total = 0.0f;
@@ -253,7 +253,7 @@ namespace fbx {
                 weight.boneWeight[i] = tmp_bone_weight[i].second;
                 total += tmp_bone_weight[i].second;
             }
-            //³‹K‰»
+            //æ­£è¦åŒ–
             for (int i = 0; i < 4; i++) {
                 weight.boneWeight[i] /= total;
             }
@@ -275,10 +275,10 @@ namespace fbx {
         FBXSDK_printf("-----------------------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //ƒAƒjƒ[ƒVƒ‡ƒ“‚ğ“¾‚éB
-    //**animationStartFrame ->n‚Ü‚è‚ÌƒtƒŒ[ƒ€
-    //**animationEndFrame ->I‚í‚è‚ÌƒtƒŒ[ƒ€
-    //**nodeIdDictionaryAnimation ->ƒAƒjƒ[ƒVƒ‡ƒ“‚Ìƒm[ƒh‚ğ«‘Œ^‚ÉƒŠƒXƒg‚É“ü‚ê‚Ä‚¨‚­
+    //ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã‚’å¾—ã‚‹ã€‚
+    //**animationStartFrame ->å§‹ã¾ã‚Šã®ãƒ•ãƒ¬ãƒ¼ãƒ 
+    //**animationEndFrame ->çµ‚ã‚ã‚Šã®ãƒ•ãƒ¬ãƒ¼ãƒ 
+    //**nodeIdDictionaryAnimation ->ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®ãƒãƒ¼ãƒ‰ã‚’è¾æ›¸å‹ã«ãƒªã‚¹ãƒˆã«å…¥ã‚Œã¦ãŠã
     bool FbxLoader::LoadAnimation(const char* filepath)
     {
         auto importer = FbxImporter::Create(this->mManagerPtr, "");
@@ -308,7 +308,7 @@ namespace fbx {
             fbx_animation.animationStartFrame = (import_offset.Get() + start_time.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
             fbx_animation.animationEndFrame = (import_offset.Get() + stop_time.Get()) / (float)FbxTime::GetOneFrameValue(FbxTime::eFrames60);
 
-            // ƒm[ƒh–¼‚©‚çƒm[ƒhID‚ğæ“¾‚Å‚«‚é‚æ‚¤‚É«‘‚É“o˜^
+            // ãƒãƒ¼ãƒ‰åã‹ã‚‰ãƒãƒ¼ãƒ‰IDã‚’å–å¾—ã§ãã‚‹ã‚ˆã†ã«è¾æ›¸ã«ç™»éŒ²
             int node_count = fbx_animation.fbxSceneAnimation->GetNodeCount();
             FBXSDK_printf("animationNodeCount: %d\n", node_count);
             for (int i = 0; i < node_count; ++i)
@@ -333,7 +333,7 @@ namespace fbx {
         this->mNodeIdDictionary.clear();
     }
     //------------------------------------------------------------------------------------------
-    //ƒm[ƒh‚ğ„‚é
+    //ãƒãƒ¼ãƒ‰ã‚’å·¡ã‚‹
     void FbxLoader::ParseNode(FbxNode *node) {
         FBXSDK_printf("-----------------------------------------------\n");
         FBXSDK_printf("parse node\n");
@@ -357,7 +357,7 @@ namespace fbx {
         FBXSDK_printf("-parse node end--------------------------------\n");
     }
     //------------------------------------------------------------------------------------------
-    //“¾‚ç‚ê‚½ƒƒbƒVƒ…‚ğ‘–¸‚µ‚Ä’¸“_EƒCƒ“ƒfƒbƒNƒXE–@üEƒEƒFƒCƒgEƒ{[ƒ“ƒCƒ“ƒfƒbƒNƒX‚ğ“¾‚ÄƒŠƒXƒg‚ÉƒvƒbƒVƒ…‚·‚é
+    //å¾—ã‚‰ã‚ŒãŸãƒ¡ãƒƒã‚·ãƒ¥ã‚’èµ°æŸ»ã—ã¦é ‚ç‚¹ãƒ»ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒ»æ³•ç·šãƒ»ã‚¦ã‚§ã‚¤ãƒˆãƒ»ãƒœãƒ¼ãƒ³ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’å¾—ã¦ãƒªã‚¹ãƒˆã«ãƒ—ãƒƒã‚·ãƒ¥ã™ã‚‹
     ModelMesh FbxLoader::ParseMesh(FbxMesh *mesh) {
         auto node = mesh->GetNode();
 
@@ -370,7 +370,7 @@ namespace fbx {
             model_mesh.materialName = "";
         }
         printf(">> mesh: %s\n", model_mesh.nodeName.c_str());
-        //ƒx[ƒXƒ|[ƒY‚Ì‹ts—ñH
+        //ãƒ™ãƒ¼ã‚¹ãƒãƒ¼ã‚ºã®é€†è¡Œåˆ—ï¼Ÿ
         auto basepose_matrix = node->EvaluateGlobalTransform().Inverse();
         auto basepose_matrix_ptr = (double*)basepose_matrix;
 
@@ -378,10 +378,10 @@ namespace fbx {
             model_mesh.invMeshBaseposeMatrix[i / 4][i % 4] = (float)basepose_matrix_ptr[i];
         }
 
-        //ƒCƒ“ƒfƒbƒNƒXæ“¾ƒtƒFƒCƒY
+        //ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹å–å¾—ãƒ•ã‚§ã‚¤ã‚º
         std::vector<int> index_list;
         GetIndexList(&index_list, *mesh);
-        //’¸“_‚ğæ“¾
+        //é ‚ç‚¹ã‚’å–å¾—
         std::vector<glm::vec3> position_list;
         GetPositionList(&position_list, *mesh, index_list);
         FBXSDK_printf("*[position num : %d]*\n", (int)position_list.size());
@@ -392,7 +392,7 @@ namespace fbx {
         GetUVList(&uv_list, *mesh, index_list, 0);
         FBXSDK_printf("*[uv num : %d]*\n", (int)uv_list.size());
 
-        // ƒ{[ƒ“ƒEƒFƒCƒgæ“¾
+        // ãƒœãƒ¼ãƒ³ã‚¦ã‚§ã‚¤ãƒˆå–å¾—
         std::vector<ModelBoneWeight> bone_weight_list;
         GetWeight(&bone_weight_list, &model_mesh.boneNodeNameList, &model_mesh.invBoneBaseposeMatrixList, *mesh, index_list);
 
@@ -419,9 +419,9 @@ namespace fbx {
             model_vertex_list.push_back(vertex);
         }
 
-        //glDrawArrays()‚É‚æ‚é•`‰æ‚ª‰Â”\‚É‚È‚éB
-        //ƒCƒ“ƒfƒbƒNƒX‚Ìƒ^[ƒ“
-        //d•¡’¸“_‚ğœ‚­
+        //glDrawArrays()ã«ã‚ˆã‚‹æç”»ãŒå¯èƒ½ã«ãªã‚‹ã€‚
+        //ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®ã‚¿ãƒ¼ãƒ³
+        //é‡è¤‡é ‚ç‚¹ã‚’é™¤ã
         auto& model_vertex_list_opt = model_mesh.vertexList;
         model_vertex_list_opt.reserve(model_vertex_list.size());
 
@@ -429,15 +429,15 @@ namespace fbx {
         model_index_list.reserve(index_list.size());
 
         for (auto& vertex : model_vertex_list) {
-            //d•¡‚µ‚Ä‚¢‚é‚©
+            //é‡è¤‡ã—ã¦ã„ã‚‹ã‹
             auto it = std::find(model_vertex_list_opt.begin(), model_vertex_list_opt.end(), vertex);
             if (it == model_vertex_list_opt.end()) {
-                //it‚ªƒŠƒXƒg‚ÌÅŒã‚ğw‚µ‚Ä‚¢‚é‚Ì‚ÅAd•¡‚µ‚Ä‚¢‚È‚¢B
+                //itãŒãƒªã‚¹ãƒˆã®æœ€å¾Œã‚’æŒ‡ã—ã¦ã„ã‚‹ã®ã§ã€é‡è¤‡ã—ã¦ã„ãªã„ã€‚
                 model_index_list.push_back((unsigned short)model_vertex_list_opt.size());
                 model_vertex_list_opt.push_back(vertex);
             }
             else {
-                //d•¡‚µ‚Ä‚¢‚é
+                //é‡è¤‡ã—ã¦ã„ã‚‹
                 auto index = std::distance(model_vertex_list_opt.begin(), it);
                 model_index_list.push_back((unsigned short)index);
             }
@@ -446,7 +446,7 @@ namespace fbx {
         return model_mesh;
     }
     //------------------------------------------------------------------------------------------
-    //‚ ‚éƒtƒŒ[ƒ€‚É‚¨‚¯‚é
+    //ã‚ã‚‹ãƒ•ãƒ¬ãƒ¼ãƒ ã«ãŠã‘ã‚‹
     void FbxLoader::GetAnimationMeshMatrix(glm::mat4 *out_matrix, float frame, int mesh_id, int anim_index) const {
         auto& model_mesh = this->mMeshList[mesh_id];
         GetAnimationMeshMatrix(out_matrix, frame, model_mesh, anim_index);
@@ -584,7 +584,7 @@ namespace fbx {
             printf("falloffTexture      : %s\n", mtl.falloffTextureName.c_str());
             printf("reflectionMapTexture: %s\n", mtl.reflectionMapTextureName.c_str());
             this->mMaterialList.push_back(mtl);
-            this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //«‘“o˜^
+            this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //è¾æ›¸ç™»éŒ²
             FBXSDK_printf("materialName:%d:%s\n", mMaterialNum, mtl.materialName.c_str());
             mMaterialNum++;
         }
@@ -602,7 +602,7 @@ namespace fbx {
                     mtl.diffuseTextureName = tex_name;
                     mtl.materialName = material->GetName();
                     this->mMaterialList.push_back(mtl);
-                    this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //«‘“o˜^
+                    this->mMaterialIdDictionary.insert({ mtl.materialName, mMaterialNum }); //è¾æ›¸ç™»éŒ²
                     FBXSDK_printf("diffuseTexture: %s\n", mtl.diffuseTextureName.c_str());
                     FBXSDK_printf("materialName:%d:%s\n", mMaterialNum, mtl.materialName.c_str());
                     mMaterialNum++;
